@@ -1,3 +1,4 @@
+// cmd/migrate/main.go
 package main
 
 import (
@@ -6,57 +7,63 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"sort"
+
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/lib/pq"
 
 	"messaging/config"
-
-	_ "github.com/lib/pq"
 )
 
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal("Failed to load config:", err)
+		log.Fatal(err)
 	}
 
-	if err := runMigrations(cfg.Database, "migrations"); err != nil {
-		log.Fatal("Failed to run migrations on main DB:", err)
+	workDir, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("Failed to get working directory: %v", err)
 	}
 
-	if err := runMigrations(cfg.EventDB, "migrations"); err != nil {
-		log.Fatal("Failed to run migrations on event DB:", err)
-	}
+	mainMigrationsPath := filepath.Join(workDir, "migrations/main")
+	eventMigrationsPath := filepath.Join(workDir, "migrations/events")
 
-	log.Println("Migrations completed successfully")
+	if err := runMigrations(cfg.Database.DSN(), mainMigrationsPath); err != nil {
+		log.Fatalf("Main DB migration failed: %v", err)
+	}
+	log.Println("Main DB migrations completed successfully")
+
+	if err := runMigrations(cfg.EventDB.DSN(), eventMigrationsPath); err != nil {
+		log.Fatalf("Event DB migration failed: %v", err)
+	}
+	log.Println("Event DB migrations completed successfully")
 }
 
-func runMigrations(dbCfg config.DatabaseConfig, migrationsDir string) error {
-	db, err := sql.Open("postgres", dbCfg.DSN())
+func runMigrations(dsn, path string) error {
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to connect: %w", err)
 	}
 	defer db.Close()
 
-	if err := db.Ping(); err != nil {
-		return err
-	}
-
-	files, err := filepath.Glob(filepath.Join(migrationsDir, "*.sql"))
+	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create driver: %w", err)
 	}
-	sort.Strings(files)
 
-	for _, file := range files {
-		log.Printf("Running migration: %s\n", file)
-		content, err := os.ReadFile(file)
-		if err != nil {
-			return err
-		}
+	m, err := migrate.NewWithDatabaseInstance(
+		fmt.Sprintf("file://%s", path),
+		"postgres",
+		driver,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create migrate instance: %w", err)
+	}
 
-		if _, err := db.Exec(string(content)); err != nil {
-			return fmt.Errorf("failed to execute %s: %w", file, err)
-		}
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("migration failed: %w", err)
 	}
 
 	return nil

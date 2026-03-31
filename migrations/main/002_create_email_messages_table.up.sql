@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS messages (
+CREATE TABLE IF NOT EXISTS email_messages (
                                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     type VARCHAR(50) NOT NULL,
     status VARCHAR(50) NOT NULL,
