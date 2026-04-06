@@ -1,10 +1,12 @@
-package repository
+package sms
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
 	"messaging/internal/domain/sms"
+
+	"github.com/google/uuid"
 )
 
 type SMSRepository struct {
@@ -15,7 +17,17 @@ func NewSMSRepository(db *sql.DB) *SMSRepository {
 	return &SMSRepository{db: db}
 }
 
-func (r *SMSRepository) Save(ctx context.Context, m sms.Message) error {
+func (r *SMSRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status string) error {
+	//TODO implement me
+	return nil
+}
+
+func (r *SMSRepository) FindByID(ctx context.Context, id uuid.UUID) (*sms.Message, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (r *SMSRepository) Save(ctx context.Context, m *sms.Message) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	{
 		if err != nil {
@@ -30,6 +42,9 @@ func (r *SMSRepository) Save(ctx context.Context, m sms.Message) error {
 	if err != nil {
 		return fmt.Errorf("insert sms failed: %w", err)
 	}
-	err := tx.Commit()
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("commit transaction failed: %w", err)
+	}
 	return nil
 }

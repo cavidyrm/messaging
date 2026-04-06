@@ -2,46 +2,36 @@ package sms
 
 import (
 	"context"
+	"messaging/internal/domain/event"
 	"time"
 
 	"github.com/google/uuid"
 )
 
+type Status string
+
 const (
-	StatusPending = "pending"
-	StatusSent    = "sent"
-	StatusFailed  = "failed"
+	StatusPending Status = "PENDING"
+	StatusSent    Status = "SENT"
+	StatusFailed  Status = "FAILED"
 )
 
 type Message struct {
-	ID          uuid.UUID
-	PhoneNumber string
-	Text        string
-	Status      string
-	SentAt      time.Time
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-}
-
-func NewSMS(phoneNumber, text string) *Message {
-	return &Message{
-		ID:          uuid.New(),
-		PhoneNumber: phoneNumber,
-		Text:        text,
-		Status:      StatusPending,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-	}
+	ID          uuid.UUID `json:"id"`
+	PhoneNumber string    `json:"phone_number"`
+	Text        string    `json:"text"`
+	Status      string    `json:"status"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type Repository interface {
-	Save(ctx context.Context, sms *Message) error
-	UpdateStatus(ctx context.Context, id uuid.UUID, status string, sentAt *time.Time) error
-	FindByID(ctx context.Context, id uuid.UUID) (*Message, error)
+	Save(ctx context.Context, msg *Message) error
+	UpdateStatus(ctx context.Context, is uuid.UUID, status string) error
 }
 
-type EventRepository interface {
-	SaveEvent(ctx context.Context, sms *Message) error
+type EventRecorder interface {
+	RecordStateChange(ctx context.Context, event event.Event, snapshot event.Snapshot) error
 }
 
 type Sender interface {

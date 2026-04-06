@@ -82,8 +82,8 @@ func Load() (*Config, error) {
 		},
 		Kafka: KafkaConfig{
 			Brokers: []string{getEnv("KAFKA_HOST", "localhost:9092")},
-			Topic:   getEnv("KAFKA_TOPIC", "messaging"),
-			GroupID: getEnv("KAFKA_GROUP_ID", "messaging-service"),
+			Topic:   getEnv("KAFKA_TOPIC", "kafka"),
+			GroupID: getEnv("KAFKA_GROUP_ID", "kafka-service"),
 		},
 		SMS: SMSConfig{
 			Provider: getEnv("SMS_PROVIDER", "kavehnegar"),
@@ -98,7 +98,7 @@ func Load() (*Config, error) {
 		},
 		Logger: LoggerConfig{
 			Level: getEnv("LOG_LEVEL", "info"),
-			File:  getEnv("LOG_FILE", "messaging.log"),
+			File:  getEnv("LOG_FILE", "kafka.log"),
 		},
 	}, nil
 }

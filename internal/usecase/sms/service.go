@@ -2,45 +2,136 @@ package sms
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"messaging/internal/domain/event"
+	"time"
+
 	"messaging/internal/domain/sms"
+
+	"github.com/google/uuid"
 )
 
 type Service struct {
-	repo      sms.Repository
-	eventRepo sms.EventRepository
+	eventRepo event.Repository
+	smsRepo   sms.Repository
 	//logger    *logger.Logger
 	sender sms.Sender
 }
 
-func NewService(repo sms.Repository, eventRepo sms.EventRepository, sender sms.Sender) *Service {
+func NewSMSService(eventRepo event.Repository, smsRepo sms.Repository, sender sms.Sender) *Service {
 	return &Service{
-		repo:      repo,
 		eventRepo: eventRepo,
+		smsRepo:   smsRepo,
 		sender:    sender,
 	}
 }
 
-func (s *Service) Send(ctx context.Context, m *sms.Message) error {
+func (s *Service) ProcessAndSendSMS(ctx context.Context, reqEvent event.Event) error {
+	now := time.Now()
 
-	//We can consider to add transactional all of these steps to have more consistency for add and send a message or rollback
-	err := s.eventRepo.SaveEvent(ctx, m)
-	if err != nil {
-		err = fmt.Errorf("failed to save sms event: %w", err)
+	var smsData struct {
+		PhoneNumber string `json:"phone_number"`
+		Text        string `json:"text"`
+	}
+	if err := json.Unmarshal(reqEvent.Data, &smsData); err != nil {
+		return fmt.Errorf("failed to unpack sms data: %w", err)
+	}
+
+	// We use the AggregateID and Version provided by the Kafka event
+	aggregateID := reqEvent.AggregateID
+	currentVersion := reqEvent.Version
+
+	// Create the SMS entity for our Reporting DB
+	smsMsg := &sms.Message{
+		ID:          aggregateID,
+		PhoneNumber: smsData.PhoneNumber,
+		Text:        smsData.Text,
+		Status:      "PENDING",
+		CreatedAt:   reqEvent.Timestamp,
+		UpdatedAt:   now,
+	}
+	stateBytes, _ := json.Marshal(smsMsg)
+
+	// Create initial snapshot from the incoming event
+	snapRequested := event.Snapshot{
+		SnapshotID:    reqEvent.EventID, // Or generate a new UUID
+		AggregateID:   aggregateID,
+		AggregateType: "SMS",
+		Version:       currentVersion,
+		State:         stateBytes,
+		UpdatedAt:     now,
+	}
+
+	// Save the incoming event and snapshot to the Event Store
+	if err := s.eventRepo.SaveEventAndSnapshot(ctx, reqEvent, snapRequested); err != nil {
+		return err
+	}
+	// Save to Reporting DB
+	if err := s.smsRepo.Save(ctx, smsMsg); err != nil {
 		return err
 	}
 
-	err = s.repo.Save(ctx, m)
-	if err != nil {
-		err = fmt.Errorf("failed to save sms message: %w", err)
+	// ==========================================
+	// PHASE 2: EXECUTE ACTION (Send SMS)
+	// ==========================================
+
+	// Only pass the primitive types
+	sendErr := s.sender.Send(ctx, smsData.PhoneNumber, smsData.Text)
+
+	// ==========================================
+	// PHASE 3: RECORD OUTCOME (SMSSent / SMSFailed)
+	// ==========================================
+
+	now = time.Now()
+	smsMsg.UpdatedAt = now
+	currentVersion++ // Increment version dynamically! (e.g., from 1 to 2)
+
+	var eventType string
+	var metadataBytes json.RawMessage
+
+	if sendErr != nil {
+		smsMsg.Status = "FAILED"
+		eventType = "SMSFailed"
+		metadataBytes = json.RawMessage(`{"error": "` + sendErr.Error() + `"}`)
+	} else {
+		smsMsg.Status = "SENT"
+		eventType = "SMSSent"
+		metadataBytes = json.RawMessage(`{}`)
+	}
+
+	newStateBytes, _ := json.Marshal(smsMsg)
+
+	// Create the Outcome Event
+	evOutcome := event.Event{
+		EventID:       uuid.New(),
+		AggregateID:   aggregateID, // Same aggregate!
+		AggregateType: "SMS",
+		EventType:     eventType,
+		Version:       currentVersion, // Incremented Version
+		Data:          newStateBytes,
+		Metadata:      metadataBytes,
+		Timestamp:     now,
+	}
+
+	// Create the Outcome Snapshot
+	snapOutcome := event.Snapshot{
+		SnapshotID:    uuid.New(),
+		AggregateID:   aggregateID,
+		AggregateType: "SMS",
+		Version:       currentVersion, // Incremented Version
+		State:         newStateBytes,
+		UpdatedAt:     now,
+	}
+
+	// Save Outcome Event & Snapshot
+	if err := s.eventRepo.SaveEventAndSnapshot(ctx, evOutcome, snapOutcome); err != nil {
+		return err
+	}
+	// Update Reporting DB
+	if err := s.smsRepo.UpdateStatus(ctx, aggregateID, smsMsg.Status); err != nil {
 		return err
 	}
 
-	err = s.sender.Send(ctx, m.PhoneNumber, m.Text)
-	if err != nil {
-		err = fmt.Errorf("failed to send sms message: %w", err)
-		return err
-	}
-
-	return nil
+	return sendErr
 }

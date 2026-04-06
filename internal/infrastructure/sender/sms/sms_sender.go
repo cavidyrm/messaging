@@ -1,4 +1,4 @@
-package sender
+package sms
 
 import (
 	"context"
@@ -14,7 +14,7 @@ func NewSMSSender(cfg config.SMSConfig) *SMSSender {
 	return &SMSSender{cfg: cfg}
 }
 
-func (s *SMSSender) Send(ctx context.Context, phoneNumber, text string) error {
+func (s *SMSSender) Send(ctx context.Context, phoneNumber string, text string) error {
 	// Mock implementation - replace with actual provider like Kavehnegar
 
 	//check validation for credentials then call api and send
