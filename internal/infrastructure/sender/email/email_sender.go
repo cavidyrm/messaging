@@ -18,6 +18,19 @@ func NewEmailSender(cfg config.EmailConfig) *EmailSender {
 	return &EmailSender{cfg: cfg}
 }
 
+type loginAuth struct{ username, password string }
+
+func (a *loginAuth) Start(_ *smtp.ServerInfo) (string, []byte, error) {
+	return "LOGIN", []byte(a.username), nil
+}
+
+func (a *loginAuth) Next(fromServer []byte, more bool) ([]byte, error) {
+	if more {
+		return []byte(a.password), nil
+	}
+	return nil, nil
+}
+
 func (s *EmailSender) Send(ctx context.Context, e *email.Email) error {
 	// Mock implementation - replace with actual provider
 
@@ -33,8 +46,8 @@ func (s *EmailSender) Send(ctx context.Context, e *email.Email) error {
 	//subject := "Test Email from Go Stdlib"
 	//body := "This email was sent using only the Go standard library over Port 465!"
 
-	host := "mail.netpardazco.com"
-	port := "465"
+	host := s.cfg.Host
+	port := s.cfg.Port
 	user := "notify@netpardazco.com"
 	password := "notify123*@!"
 	from := "notify@netpardazco.com"
@@ -44,11 +57,8 @@ func (s *EmailSender) Send(ctx context.Context, e *email.Email) error {
 		from, e.Address, e.Subject, e.Body,
 	)
 
-	auth := smtp.PlainAuth("", user, password, host)
-
 	tlsConfig := &tls.Config{
-		InsecureSkipVerify: false,
-		ServerName:         host,
+		InsecureSkipVerify: true,
 	}
 
 	conn, err := tls.Dial("tcp", fmt.Sprintf("%s:%s", host, port), tlsConfig)
@@ -62,6 +72,7 @@ func (s *EmailSender) Send(ctx context.Context, e *email.Email) error {
 	}
 	defer client.Quit()
 
+	auth := &loginAuth{user, password}
 	if err = client.Auth(auth); err != nil {
 		return fmt.Errorf("SMTP auth failed: %w", err)
 	}

@@ -36,7 +36,7 @@ func (s *SMSSender) Send(ctx context.Context, phoneNumber string, text string) e
 
 	jsonBody, _ := json.Marshal(body)
 	req, _ := http.NewRequest("POST", "https://api.sms.ir/v1/send/bulk", bytes.NewBuffer(jsonBody))
-	req.Header.Set("x-api-key", "jOCRVhdCeYPxunEEbaZhXzaxqBO8gRWs148V7vQ2VUv29AZQ")
+	req.Header.Set("x-api-key", s.cfg.APIKey)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)

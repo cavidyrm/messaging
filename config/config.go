@@ -43,10 +43,12 @@ type KafkaConfig struct {
 	GroupID string
 }
 type EmailConfig struct {
-	Provider string
+	Host     string
 	APIKey   string
 	From     string
-	Endpoint string
+	Port     string
+	Username string
+	Password string
 }
 
 type SMSConfig struct {
@@ -91,10 +93,12 @@ func Load() (*Config, error) {
 			Endpoint: getEnv("SMS_ENDPOINT", "https://api.kavehnegar.com/send"),
 		},
 		Email: EmailConfig{
-			Provider: getEnv("EMAIL_PROVIDER", "arvan"),
+			Host:     getEnv("EMAIL_HOST", "arvan"),
 			APIKey:   getEnv("EMAIL_API_KEY", "smtp-api-key"),
 			From:     getEnv("EMAIL_FROM", "noreply@netpardaz.com"),
-			Endpoint: getEnv("EMAIL_ENDPOINT", "https://smtp.com"),
+			Port:     getEnv("EMAIL_PORT", "https://smtp.com"),
+			Username: getEnv("EMAIL_USER", "smtp-user"),
+			Password: getEnv("EMAIL_PASS", "smtp-pass"),
 		},
 		Logger: LoggerConfig{
 			Level: getEnv("LOG_LEVEL", "info"),

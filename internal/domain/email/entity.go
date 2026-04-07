@@ -14,7 +14,6 @@ type Email struct {
 	Subject   string    `json:"subject"`
 	Body      string    `json:"body"`
 	Status    string    `json:"status"`
-	SentAt    time.Time `json:"sent_at"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

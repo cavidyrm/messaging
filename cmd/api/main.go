@@ -22,9 +22,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func init() {
-
-}
 func main() {
 	err := godotenv.Load()
 	if err != nil {
@@ -35,6 +32,9 @@ func main() {
 	if err != nil {
 		log.Fatal("config couldn't load...")
 	}
+
+	fmt.Println(cfg.SMS)
+	fmt.Println(cfg.Email)
 	db, err := database.NewPostgres(cfg.Database)
 	if err != nil {
 		log.Fatal("Failed to connect to database", err, nil)

@@ -29,11 +29,10 @@ func (s *Service) ProcessAndSendEmail(ctx context.Context, reqEvent event.Event)
 	now := time.Now()
 
 	var data struct {
-		Address string `json:"address"`
+		Address string `json:"to_address"`
 		Subject string `json:"subject"`
 		Body    string `json:"body"`
 	}
-
 	if err := json.Unmarshal(reqEvent.Data, &data); err != nil {
 		return fmt.Errorf("failed to unpack email data: %w", err)
 	}
@@ -54,12 +53,15 @@ func (s *Service) ProcessAndSendEmail(ctx context.Context, reqEvent event.Event)
 	if err := s.eventRepo.SaveEvent(ctx, reqEvent); err != nil {
 		return err
 	}
-
 	if err := s.emailRepo.Save(ctx, emailMsg); err != nil {
 		return err
 	}
 
 	sendErr := s.sender.Send(ctx, emailMsg)
+
+	now = time.Now()
+	emailMsg.UpdatedAt = now
+	currentVersion++
 
 	var eventType string
 	var metadataBytes json.RawMessage
@@ -71,8 +73,6 @@ func (s *Service) ProcessAndSendEmail(ctx context.Context, reqEvent event.Event)
 	} else {
 		emailMsg.Status = "SENT"
 		eventType = "EmailSent"
-		sentAt := now
-		emailMsg.SentAt = sentAt
 		metadataBytes = json.RawMessage(`{}`)
 	}
 
@@ -92,14 +92,14 @@ func (s *Service) ProcessAndSendEmail(ctx context.Context, reqEvent event.Event)
 	if err := s.eventRepo.SaveEvent(ctx, evOutcome); err != nil {
 		return err
 	}
-	if err := s.emailRepo.UpdateStatus(ctx, emailMsg.ID, emailMsg.Status); err != nil {
+	if err := s.emailRepo.UpdateStatus(ctx, aggregateID, emailMsg.Status); err != nil {
 		return err
 	}
 
 	return sendErr
 }
 
-// SendEmail is called by the HTTP handler directly (no event sourcing).
+// http sending method
 func (s *Service) SendEmail(ctx context.Context, address, subject, body string) error {
 	return s.sender.Send(ctx, &email.Email{
 		Address: address,
