@@ -24,10 +24,11 @@ type Snapshot struct {
 	AggregateID   uuid.UUID       `json:"aggregate_id"`
 	AggregateType string          `json:"aggregate_type"`
 	Version       int             `json:"version"`
-	State         json.RawMessage `json:"state"`
-	UpdatedAt     time.Time       `json:"updated_at"`
+	Data          json.RawMessage `json:"data"`
+	Metadata      json.RawMessage `json:"metadata"`
+	Timestamp     time.Time       `json:"timestamp"`
 }
 
 type Repository interface {
-	SaveEventAndSnapshot(ctx context.Context, event Event, snapshot Snapshot) error
+	SaveEvent(ctx context.Context, event Event) error
 }

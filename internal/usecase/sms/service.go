@@ -51,20 +51,19 @@ func (s *Service) ProcessAndSendSMS(ctx context.Context, reqEvent event.Event) e
 		CreatedAt:   reqEvent.Timestamp,
 		UpdatedAt:   now,
 	}
-	stateBytes, _ := json.Marshal(smsMsg)
-
-	// Create initial snapshot from the incoming event
-	snapRequested := event.Snapshot{
-		SnapshotID:    reqEvent.EventID, // Or generate a new UUID
-		AggregateID:   aggregateID,
-		AggregateType: "SMS",
-		Version:       currentVersion,
-		State:         stateBytes,
-		UpdatedAt:     now,
-	}
+	//stateBytes, _ := json.Marshal(smsMsg)
+	//
+	//// Create initial snapshot from the incoming event
+	//snapRequested := event.Snapshot{
+	//	SnapshotID:    reqEvent.EventID, // Or generate a new UUID
+	//	AggregateID:   aggregateID,
+	//	AggregateType: "SMS",
+	//	Version:       currentVersion,
+	//
+	//}
 
 	// Save the incoming event and snapshot to the Event Store
-	if err := s.eventRepo.SaveEventAndSnapshot(ctx, reqEvent, snapRequested); err != nil {
+	if err := s.eventRepo.SaveEvent(ctx, reqEvent); err != nil {
 		return err
 	}
 	// Save to Reporting DB
@@ -72,20 +71,13 @@ func (s *Service) ProcessAndSendSMS(ctx context.Context, reqEvent event.Event) e
 		return err
 	}
 
-	// ==========================================
-	// PHASE 2: EXECUTE ACTION (Send SMS)
-	// ==========================================
-
-	// Only pass the primitive types
+	// send sms
 	sendErr := s.sender.Send(ctx, smsData.PhoneNumber, smsData.Text)
 
-	// ==========================================
-	// PHASE 3: RECORD OUTCOME (SMSSent / SMSFailed)
-	// ==========================================
-
+	// sms sent or fialed
 	now = time.Now()
 	smsMsg.UpdatedAt = now
-	currentVersion++ // Increment version dynamically! (e.g., from 1 to 2)
+	currentVersion++ // Increment version
 
 	var eventType string
 	var metadataBytes json.RawMessage
@@ -114,18 +106,19 @@ func (s *Service) ProcessAndSendSMS(ctx context.Context, reqEvent event.Event) e
 		Timestamp:     now,
 	}
 
-	// Create the Outcome Snapshot
-	snapOutcome := event.Snapshot{
-		SnapshotID:    uuid.New(),
-		AggregateID:   aggregateID,
-		AggregateType: "SMS",
-		Version:       currentVersion, // Incremented Version
-		State:         newStateBytes,
-		UpdatedAt:     now,
-	}
+	//// Create the Outcome Snapshot
+	//snapOutcome := event.Snapshot{
+	//	SnapshotID:    uuid.New(),
+	//	AggregateID:   aggregateID,
+	//	AggregateType: "SMS",
+	//	Version:       currentVersion, // Incremented Version
+	//	Data:          newStateBytes,
+	//	Metadata:      metadataBytes,
+	//	Timestamp:     now,
+	//}
 
 	// Save Outcome Event & Snapshot
-	if err := s.eventRepo.SaveEventAndSnapshot(ctx, evOutcome, snapOutcome); err != nil {
+	if err := s.eventRepo.SaveEvent(ctx, evOutcome); err != nil {
 		return err
 	}
 	// Update Reporting DB
@@ -134,4 +127,21 @@ func (s *Service) ProcessAndSendSMS(ctx context.Context, reqEvent event.Event) e
 	}
 
 	return sendErr
+}
+
+func (s *Service) Send(ctx context.Context, phoneNumber, text string) error {
+	err := s.sender.Send(ctx, phoneNumber, text)
+	if err != nil {
+		return err
+	}
+	smsMsg := &sms.Message{
+		ID:          uuid.New(),
+		PhoneNumber: phoneNumber,
+		Text:        text,
+		Status:      "Sent",
+	}
+	if err := s.smsRepo.Save(ctx, smsMsg); err != nil {
+		return err
+	}
+	return nil
 }

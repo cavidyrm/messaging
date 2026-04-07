@@ -29,13 +29,17 @@ func (r *MessageRouter) Route(ctx context.Context, event event.Event) error {
 			// Pass the complete event down to the service layer
 			err := r.smsService.ProcessAndSendSMS(ctx, event)
 			if err != nil {
-				return fmt.Errorf("unhandled SMS event type: %s", event.EventType)
+				return fmt.Errorf("unhandled SMS event type in router: %s , %v", event.EventType, err)
 			}
 			return nil
 		}
 	case "Email":
-		//if ev.EventType == "EmailSendRequested" { return email service }
-		return fmt.Errorf("email routing not fully implemented yet")
+		if event.EventType == "EmailSendRequested" {
+			if err := r.emailService.ProcessAndSendEmail(ctx, event); err != nil {
+				return fmt.Errorf("unhandled email event type in router: %s , %v", event.EventType, err)
+			}
+		}
+		return nil
 
 	default:
 		return fmt.Errorf("unknown aggregate type: %s", event.AggregateType)

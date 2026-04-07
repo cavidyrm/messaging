@@ -3,14 +3,20 @@ package email
 import (
 	"context"
 	"messaging/internal/domain/event"
+	"time"
 
 	"github.com/google/uuid"
 )
 
 type Email struct {
-	Address string
-	Subject string
-	Body    string
+	ID        uuid.UUID `json:"id"`
+	Address   string    `json:"address"`
+	Subject   string    `json:"subject"`
+	Body      string    `json:"body"`
+	Status    string    `json:"status"`
+	SentAt    time.Time `json:"sent_at"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type Repository interface {

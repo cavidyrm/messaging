@@ -67,23 +67,23 @@ func Load() (*Config, error) {
 		Database: DatabaseConfig{
 			Host:         getEnv("DATABASE_HOST", "localhost"),
 			Port:         getEnvInt("DATABASE_PORT", 5432),
-			Username:     getEnv("DATABASE_USER", "postgres"),
-			Password:     getEnv("DATABASE_PASSWORD", "postgres"),
-			DatabaseName: getEnv("DATABASE_NAME", "postgres"),
+			Username:     getEnv("DATABASE_USER", "user"),
+			Password:     getEnv("DATABASE_PASSWORD", "password"),
+			DatabaseName: getEnv("DATABASE_NAME", "my_database"),
 			SSLMode:      getEnv("DATABASE_SSLMODE", "disable"),
 		},
 		EventDB: DatabaseConfig{
 			Host:         getEnv("EVENT_HOST", "localhost"),
-			Port:         getEnvInt("EVENT_PORT", 9090),
-			Username:     getEnv("EVENT_USER", "postgres"),
-			Password:     getEnv("EVENT_PASS", "postgres"),
-			DatabaseName: getEnv("EVENT_DATABASE_NAME", "postgres"),
+			Port:         getEnvInt("EVENT_PORT", 5433),
+			Username:     getEnv("EVENT_USER", "user"),
+			Password:     getEnv("EVENT_PASS", "password"),
+			DatabaseName: getEnv("EVENT_DATABASE_NAME", "my_database"),
 			SSLMode:      getEnv("EVENT_SSLMODE", "disable"),
 		},
 		Kafka: KafkaConfig{
 			Brokers: []string{getEnv("KAFKA_HOST", "localhost:9092")},
-			Topic:   getEnv("KAFKA_TOPIC", "kafka"),
-			GroupID: getEnv("KAFKA_GROUP_ID", "kafka-service"),
+			Topic:   getEnv("KAFKA_TOPIC", "messaging"),
+			GroupID: getEnv("KAFKA_GROUP_ID", "messaging-group"),
 		},
 		SMS: SMSConfig{
 			Provider: getEnv("SMS_PROVIDER", "kavehnegar"),
@@ -104,7 +104,7 @@ func Load() (*Config, error) {
 }
 
 func (d DatabaseConfig) DSN() string {
-	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		d.Host, d.Port, d.Username, d.Password, d.DatabaseName, d.SSLMode)
 }
 

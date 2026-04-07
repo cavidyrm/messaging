@@ -3,15 +3,16 @@ package handler
 import (
 	"net/http"
 
-	"github.com/labstack/echo/v4"
 	"messaging/internal/usecase/sms"
+
+	"github.com/labstack/echo/v4"
 )
 
 type SMSHandler struct {
-	service *sms.SMSService
+	service *sms.Service
 }
 
-func NewSMSHandler(service *sms.SMSService) *SMSHandler {
+func NewSMSHandler(service *sms.Service) *SMSHandler {
 	return &SMSHandler{service: service}
 }
 

@@ -17,7 +17,7 @@ func NewEventStore(db *sql.DB) *EventRepository {
 }
 
 // SaveEventAndSnapshot saves both records atomically to avoid dual-write issues
-func (es *EventRepository) SaveEventAndSnapshot(ctx context.Context, ev event.Event, snap event.Snapshot) error {
+func (es *EventRepository) SaveEvent(ctx context.Context, ev event.Event) error {
 	tx, err := es.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -26,7 +26,7 @@ func (es *EventRepository) SaveEventAndSnapshot(ctx context.Context, ev event.Ev
 
 	// 1. Insert Event
 	insertEventQuery := `
-		INSERT INTO events (event_id, aggregate_id, aggregate_type, event_type, version, data, metadata, timestamp)
+		INSERT INTO microservices.events (event_id, aggregate_id, aggregate_type, event_type, version, data, metadata, timestamp)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 
 	_, err = tx.ExecContext(ctx, insertEventQuery,
@@ -38,21 +38,20 @@ func (es *EventRepository) SaveEventAndSnapshot(ctx context.Context, ev event.Ev
 	}
 
 	// 2. Upsert Snapshot (Insert or update if version is higher)
-	upsertSnapshotQuery := `
-		INSERT INTO snapshots (aggregate_id, aggregate_type, version, state, updated_at)
-		VALUES ($1, $2, $3, $4, $5)
-		ON CONFLICT (aggregate_id) DO UPDATE 
-		SET version = EXCLUDED.version,
-		    state = EXCLUDED.state,
-		    updated_at = EXCLUDED.updated_at
-		WHERE snapshots.version < EXCLUDED.version`
-
-	_, err = tx.ExecContext(ctx, upsertSnapshotQuery,
-		snap.AggregateID, snap.AggregateType, snap.Version, snap.State, snap.UpdatedAt,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to upsert snapshot: %w", err)
-	}
+	//upsertSnapshotQuery := `
+	//	INSERT INTO microservices.snapshots (aggregate_id, aggregate_type, version, data, metadata, timestamp)
+	//	VALUES ($1, $2, $3, $4, $5, $6)
+	//	ON CONFLICT (aggregate_id) DO UPDATE
+	//	SET version = EXCLUDED.version,
+	//	    updated_at = EXCLUDED.updated_at
+	//	WHERE snapshots.version < EXCLUDED.version`
+	//
+	//_, err = tx.ExecContext(ctx, upsertSnapshotQuery,
+	//	snap.AggregateID, snap.AggregateType, snap.Version,
+	//)
+	//if err != nil {
+	//	return fmt.Errorf("failed to upsert snapshot: %w", err)
+	//}
 
 	return tx.Commit()
 }

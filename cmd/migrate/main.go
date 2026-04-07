@@ -4,6 +4,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"github.com/joho/godotenv"
 	"log"
 	"os"
 	"path/filepath"
@@ -17,6 +18,11 @@ import (
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Println(".env not found")
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatal(err)

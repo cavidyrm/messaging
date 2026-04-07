@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"messaging/config"
 	"messaging/internal/infrastructure/database"
@@ -17,12 +18,19 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/joho/godotenv"
 )
 
 func init() {
 
 }
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Println(".env not found")
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatal("config couldn't load...")
@@ -50,7 +58,7 @@ func main() {
 	emailService := emailSvc.NewEmailService(eventRepo, emailRepo, emailSender)
 
 	router := usecase.NewMessageRouter(smsService, emailService)
-
+	fmt.Println("kafka config------------------------", cfg.Kafka)
 	consumer := kafka.NewConsumer(cfg.Kafka.Brokers, cfg.Kafka.Topic, cfg.Kafka.GroupID, router)
 
 	ctx, cancel := context.WithCancel(context.Background())
