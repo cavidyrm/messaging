@@ -1,10 +1,14 @@
 package handler
 
 import (
+	"encoding/json"
+	"messaging/internal/domain/event"
 	"net/http"
+	"time"
 
 	"messaging/internal/usecase/sms"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -27,10 +31,41 @@ func (h *SMSHandler) SendSMS(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request"})
 	}
 
-	//matching sms sending fields based on interfaces
-	if err := h.service.Send(c.Request().Context(), req.PhoneNumber, req.Text); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	if err := c.Validate(req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+	}
+	data, _ := json.Marshal(map[string]string{
+		"phone_number": req.PhoneNumber,
+		"text":         req.Text,
+	})
+
+	event := event.Event{
+		EventID:       uuid.New(),
+		AggregateID:   uuid.New(),
+		AggregateType: "sms",
+		EventType:     "SmsSendRequested",
+		Version:       1,
+		Data:          data,
+		Metadata:      json.RawMessage(`{}`),
+		Timestamp:     time.Now(),
 	}
 
-	return c.JSON(http.StatusOK, map[string]string{"status": "sent"})
+	if err := h.service.ProcessAndSendSMS(c.Request().Context(), event); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to send SMS"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"status": "SMS request accepted"})
+}
+
+func (h *SMSHandler) GetByID(c echo.Context) error {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid id"})
+	}
+
+	msg, err := h.service.GetByID(c.Request().Context(), id)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, msg)
 }

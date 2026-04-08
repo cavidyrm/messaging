@@ -28,6 +28,7 @@ type Message struct {
 type Repository interface {
 	Save(ctx context.Context, msg *Message) error
 	UpdateStatus(ctx context.Context, is uuid.UUID, status string) error
+	FindByID(ctx context.Context, id uuid.UUID) (*Message, error)
 }
 
 type EventRecorder interface {

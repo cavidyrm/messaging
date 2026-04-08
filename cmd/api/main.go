@@ -2,9 +2,10 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"messaging/config"
+	httpDelivery "messaging/internal/delivery/http"
+	"messaging/internal/delivery/http/handler"
 	"messaging/internal/infrastructure/database"
 	"messaging/internal/infrastructure/kafka"
 	emailRepository "messaging/internal/infrastructure/repository/email"
@@ -33,8 +34,6 @@ func main() {
 		log.Fatal("config couldn't load...")
 	}
 
-	fmt.Println(cfg.SMS)
-	fmt.Println(cfg.Email)
 	db, err := database.NewPostgres(cfg.Database)
 	if err != nil {
 		log.Fatal("Failed to connect to database", err, nil)
@@ -57,9 +56,19 @@ func main() {
 	smsService := smsSvc.NewSMSService(eventRepo, smsRepo, smsSender)
 	emailService := emailSvc.NewEmailService(eventRepo, emailRepo, emailSender)
 
-	router := usecase.NewMessageRouter(smsService, emailService)
-	fmt.Println("kafka config------------------------", cfg.Kafka)
-	consumer := kafka.NewConsumer(cfg.Kafka.Brokers, cfg.Kafka.Topic, cfg.Kafka.GroupID, router)
+	smsHandler := handler.NewSMSHandler(smsService)
+	emailHandler := handler.NewEmailHandler(emailService)
+	httpRouter := httpDelivery.SetupRouter(smsHandler, emailHandler)
+
+	go func() {
+		if err := httpRouter.Start(":" + cfg.Server.Port); err != nil {
+			log.Fatal("Failed to start http server", err, nil)
+		}
+	}()
+
+	messagingRouter := usecase.NewMessageRouter(smsService, emailService)
+
+	consumer := kafka.NewConsumer(cfg.Kafka.Brokers, cfg.Kafka.Topic, cfg.Kafka.GroupID, messagingRouter)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -76,6 +85,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Notification service shutting down...")
+
 	// Cancel the context to stop the consumer loop
 	cancel()
 

@@ -16,7 +16,7 @@ type Config struct {
 	Logger   LoggerConfig
 }
 type ServerConfig struct {
-	Port int
+	Port string
 }
 
 type DatabaseConfig struct {
@@ -64,7 +64,7 @@ type LoggerConfig struct {
 func Load() (*Config, error) {
 	return &Config{
 		Server: ServerConfig{
-			Port: getEnvInt("SERVER_PORT", 8080),
+			Port: getEnv("SERVER_PORT", "8080"),
 		},
 		Database: DatabaseConfig{
 			Host:         getEnv("DATABASE_HOST", "localhost"),

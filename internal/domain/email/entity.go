@@ -21,6 +21,7 @@ type Email struct {
 type Repository interface {
 	Save(ctx context.Context, msg *Email) error
 	UpdateStatus(ctx context.Context, is uuid.UUID, status string) error
+	FindByID(ctx context.Context, id uuid.UUID) (*Email, error)
 }
 
 type EventRecorder interface {

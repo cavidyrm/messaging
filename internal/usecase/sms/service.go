@@ -129,19 +129,6 @@ func (s *Service) ProcessAndSendSMS(ctx context.Context, reqEvent event.Event) e
 	return sendErr
 }
 
-func (s *Service) Send(ctx context.Context, phoneNumber, text string) error {
-	err := s.sender.Send(ctx, phoneNumber, text)
-	if err != nil {
-		return err
-	}
-	smsMsg := &sms.Message{
-		ID:          uuid.New(),
-		PhoneNumber: phoneNumber,
-		Text:        text,
-		Status:      "Sent",
-	}
-	if err := s.smsRepo.Save(ctx, smsMsg); err != nil {
-		return err
-	}
-	return nil
+func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*sms.Message, error) {
+	return s.smsRepo.FindByID(ctx, id)
 }

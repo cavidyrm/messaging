@@ -39,3 +39,17 @@ func (r *EmailRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status
 	}
 	return nil
 }
+
+func (r *EmailRepository) FindByID(ctx context.Context, id uuid.UUID) (*email.Email, error) {
+	var m email.Email
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, address, subject, body, status FROM email_messages WHERE id = $1`, id,
+	).Scan(&m.ID, &m.Address, &m.Subject, &m.Body, &m.Status)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("email not found: %s", id)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("query email by id: %w", err)
+	}
+	return &m, nil
+}

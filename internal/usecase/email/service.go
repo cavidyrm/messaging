@@ -99,11 +99,6 @@ func (s *Service) ProcessAndSendEmail(ctx context.Context, reqEvent event.Event)
 	return sendErr
 }
 
-// http sending method
-func (s *Service) SendEmail(ctx context.Context, address, subject, body string) error {
-	return s.sender.Send(ctx, &email.Email{
-		Address: address,
-		Subject: subject,
-		Body:    body,
-	})
+func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*email.Email, error) {
+	return s.emailRepo.FindByID(ctx, id)
 }
